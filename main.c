@@ -5,6 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #define LOG_LEVEL 3
@@ -12,8 +15,17 @@
 #define LOG_ERROR 2
 #define LOG_DEBUG 3
 
-// TODO: proper logging with timestamps
 void log_message(int level, const char *format, ...) {
+  time_t rawtime;
+  struct tm *timeinfo;
+  char buffer[80];
+
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+
+  strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", timeinfo);
+  printf("%s ", buffer);
+
   va_list args;
   va_start(args, format);
   if (level <= LOG_LEVEL) {
@@ -28,7 +40,21 @@ void close_pseudoterminal(int master, int slave) {
   log_message(LOG_INFO, "Pseudoterminal closed\n");
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+  if (argc > 1 && strcmp(argv[1], "--quiet") == 0) {
+    int master, slave;
+    char slave_path[100];
+
+    if (openpty(&master, &slave, slave_path, NULL, NULL) == -1) {
+      log_message(LOG_ERROR, "Failed to open pseudoterminal: %s\n",
+                  strerror(errno));
+      exit(EXIT_FAILURE);
+    }
+
+    printf("%s\n", slave_path);
+    exit(EXIT_SUCCESS);
+  }
+
   int master, slave;
   char slave_path[100];
 
